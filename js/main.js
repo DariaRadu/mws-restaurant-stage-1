@@ -3,10 +3,24 @@ let restaurants,
   cuisines
 var map
 var markers = []
+let db;
+var bLazy = new Blazy({
+  success: function () {
+    bLazy.revalidate();
+}
+});
 
-
-
-
+DBHelper.openDatabase()
+.then((database)=>{
+  db=database;
+  db.transaction('restaurants', 'readonly').objectStore('restaurants').getAll()
+  .then((restaurantsCached)=>{
+    restaurants = restaurantsCached;
+    fillRestaurantsHTML(restaurants);
+    console.log(restaurants);
+  });
+  
+});
 
 /**
  * Fetch neighborhoods and cuisines as soon as the page is loaded.
@@ -99,11 +113,12 @@ updateRestaurants = () => {
 
   const cuisine = cSelect[cIndex].value;
   const neighborhood = nSelect[nIndex].value;
-
+  
   DBHelper.fetchRestaurantByCuisineAndNeighborhood(cuisine, neighborhood, (error, restaurants) => {
     if (error) { // Got an error!
       console.error(error);
     } else {
+      storeRestaurants(restaurants);
       resetRestaurants(restaurants);
       fillRestaurantsHTML();
     }
@@ -133,7 +148,8 @@ fillRestaurantsHTML = (restaurants = self.restaurants) => {
   restaurants.forEach(restaurant => {
     ul.append(createRestaurantHTML(restaurant));
   });
-  addMarkersToMap();
+  bLazy.revalidate();
+  addMarkersToMap(restaurants);
 }
 
 /**
@@ -143,8 +159,9 @@ createRestaurantHTML = (restaurant) => {
   const li = document.createElement('li');
 
   const image = document.createElement('img');
-  image.className = 'restaurant-img';
-  image.src = DBHelper.imageUrlForRestaurant(restaurant);
+  image.className = 'restaurant-img b-lazy';
+  image.src='./images/placeholder.png'
+  image.setAttribute("data-src", DBHelper.imageUrlForRestaurant(restaurant)); ;
   image.alt= restaurant.name;
   li.append(image);
 
@@ -197,3 +214,12 @@ registerServiceWorker=()=>{
 
 registerServiceWorker();
 
+/* INDEXEDDB */
+
+storeRestaurants=(restaurants)=>{
+  const tx = db.transaction('restaurants','readwrite');
+  const store = tx.objectStore('restaurants');
+  restaurants.forEach((restaurant)=>{
+    store.put(restaurant);
+  })
+}
