@@ -10,7 +10,7 @@ var concat = require('gulp-concat');
 var uglify = require('gulp-uglify-es').default;
 var sourcemaps = require('gulp-sourcemaps');
 
-gulp.task('default', ['copy-images', 'styles', /* 'lint',  */'scripts-dist'], function() {
+gulp.task('default', ['copy-html', 'copy-images', 'styles', /* 'lint',  */'scripts-dist'], function() {
 	gulp.watch('sass/**/*.scss', ['styles']);
 	gulp.watch('js/**/*.js', ['lint']);
 	gulp.watch('/index.html', ['copy-html']);
@@ -40,10 +40,10 @@ gulp.task('scripts-dist', function() {
 		.pipe(gulp.dest('dist/js'));
 });
 
-/* gulp.task('copy-html', function() {
-	gulp.src('./index.html')
+gulp.task('copy-html', function() {
+	gulp.src('./*.html')
 		.pipe(gulp.dest('./dist'));
-}); */
+});
 
 gulp.task('copy-images', function() {
 	gulp.src('images/*')

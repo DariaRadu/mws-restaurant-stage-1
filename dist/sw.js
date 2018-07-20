@@ -9,7 +9,8 @@ self.addEventListener('install', function(event){
         '/js/main.js',
         '/js/restaurant_info.js',
         'https://cdnjs.cloudflare.com/ajax/libs/blazy/1.8.2/blazy.min.js',
-        '/js/idb.js'
+        '/js/idb.js',
+        '/images/'
     ];
 
     event.waitUntil(

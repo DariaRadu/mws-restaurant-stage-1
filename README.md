@@ -1,3 +1,6 @@
+#TO TEST
+Run the server on the dist folder, then use localhost:8000 for the performance test (as it has minified files).
+
 # Mobile Web Specialist Certification Course
 ---
 #### _Three Stage Course Material Project - Restaurant Reviews_
