@@ -1,5 +1,6 @@
-#TO TEST
+# TO TEST
 Run the server on the dist folder, then use localhost:8000 for the performance test (as it has minified files).
+I created the project with the help of the web seminar, so some of the ideas implemented might be similar : )
 
 # Mobile Web Specialist Certification Course
 ---
