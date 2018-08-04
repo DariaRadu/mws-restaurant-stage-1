@@ -1,9 +1,51 @@
 let restaurant;
-var map;
+var newMap;
+let db;
+let reviews;
+
+/* IndexedDB for reviews */
+
+storeReviews=(reviews)=>{
+  const tx = db.transaction('reviews','readwrite');
+  const store = tx.objectStore('reviews');
+  reviews.forEach((review)=>{
+    store.put(review);
+  })
+}
 
 /**
- * Initialize Google map, called from HTML.
+ * Initialize map as soon as the page is loaded.
  */
+document.addEventListener('DOMContentLoaded', (event) => {  
+  initMap();
+});
+
+/**
+ * Initialize leaflet map
+ */
+initMap = () => {
+  fetchRestaurantFromURL((error, restaurant) => {
+    if (error) { // Got an error!
+      console.error(error);
+    } else {      
+      self.newMap = L.map('map', {
+        center: [restaurant.latlng.lat, restaurant.latlng.lng],
+        zoom: 16,
+        scrollWheelZoom: false
+      });
+      L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.jpg70?access_token={mapboxToken}', {
+        mapboxToken: 'pk.eyJ1IjoiZGFyaWFyYWR1IiwiYSI6ImNqa2Z5ZjZueTBkOGwzdm56bHN1Y2pqY20ifQ.n9gKdcAPUTOoc50PPqILbA',
+        maxZoom: 18,
+        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
+          '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+          'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+        id: 'mapbox.streets'    
+      }).addTo(newMap);
+      fillBreadcrumb();
+      DBHelper.mapMarkerForRestaurant(self.restaurant, self.newMap);
+    }
+  });
+}  /* 
 window.initMap = () => {
   fetchRestaurantFromURL((error, restaurant) => {
     if (error) { // Got an error!
@@ -19,6 +61,17 @@ window.initMap = () => {
     }
   });
 }
+ */
+/* Get reviews and store them*/
+DBHelper.openDatabase()
+.then((database)=>{
+  db=database;
+  db.transaction('reviews', 'readwrite').objectStore('reviews').getAll()
+  .then((reviewsCached)=>{
+    reviews = reviewsCached;
+  });
+  
+});
 
 /**
  * Get current restaurant from page URL.
@@ -45,6 +98,7 @@ fetchRestaurantFromURL = (callback) => {
   }
 }
 
+
 /**
  * Create restaurant HTML and add it to the webpage
  */
@@ -69,8 +123,14 @@ fillRestaurantHTML = (restaurant = self.restaurant) => {
   if (restaurant.operating_hours) {
     fillRestaurantHoursHTML();
   }
+
   // fill reviews
-  fillReviewsHTML();
+  DBHelper.fetchReviews(restaurant.id, (error, reviewsFetched)=>{
+    reviews = reviewsFetched;
+    storeReviews(reviews);
+    fillReviewsHTML(reviews);
+  })
+  
 }
 
 /**
@@ -96,23 +156,30 @@ fillRestaurantHoursHTML = (operatingHours = self.restaurant.operating_hours) => 
 /**
  * Create all reviews HTML and add them to the webpage.
  */
-fillReviewsHTML = (reviews = self.restaurant.reviews) => {
+fillReviewsHTML = (reviews) => {
   const container = document.getElementById('reviews-container');
-  const title = document.createElement('h3');
+  const title = document.querySelector('#reviews-container h3');
   title.innerHTML = 'Reviews';
-  container.appendChild(title);
+  let noReviewsChild=document.querySelector('#no-reviews');
+
+  if(noReviewsChild){
+    container.removeChild(noReviewsChild);
+  }
 
   if (!reviews) {
     const noReviews = document.createElement('p');
+    noReviews.id='no-reviews';
     noReviews.innerHTML = 'No reviews yet!';
     container.appendChild(noReviews);
     return;
   }
+
   const ul = document.getElementById('reviews-list');
+  ul.innerHTML='';
   reviews.forEach(review => {
     ul.appendChild(createReviewHTML(review));
   });
-  container.appendChild(ul);
+  //container.appendChild(ul);
 }
 
 /**
@@ -120,12 +187,20 @@ fillReviewsHTML = (reviews = self.restaurant.reviews) => {
  */
 createReviewHTML = (review) => {
   const li = document.createElement('li');
+  if (!navigator.onLine){
+    const offlineLabel = document.createElement('p');
+    offlineLabel.classList.add('offline-review-label');
+    offlineLabel.innerHTML="Connection Error. Review will be posted when the connection is restored!";
+    li.appendChild(offlineLabel);
+    li.classList.add('offline-review');
+  }
   const name = document.createElement('p');
   name.innerHTML = review.name;
   li.appendChild(name);
 
   const date = document.createElement('p');
-  date.innerHTML = review.date;
+  let createdDate=new Date(review.createdAt);
+  date.innerHTML = createdDate.toISOString().substr(0, 10);
   li.appendChild(date);
 
   const rating = document.createElement('p');
@@ -164,3 +239,26 @@ getParameterByName = (name, url) => {
     return '';
   return decodeURIComponent(results[2].replace(/\+/g, ' '));
 }
+
+/* Add Review */
+
+let addReviewButton = document.querySelector('#addReviewButton');
+addReviewButton.addEventListener('click', ()=>{
+  let restaurantId = getParameterByName('id');
+  let author = document.querySelector('#reviewAuthor').value;
+  let reviewRating = document.querySelector('#reviewRating option:checked').value;
+  let reviewText = document.querySelector('#reviewText').value;
+
+  const review = {
+    "restaurant_id":parseInt(restaurantId),
+    "rating":parseInt(reviewRating),
+    "name":author,
+    "comments":reviewText,
+    "createdAt": new Date()
+  }
+  reviews.push(review);
+
+  DBHelper.addReview(review);
+  let reviewsContainer=document.querySelector('#reviews-list');
+  reviewsContainer.appendChild(createReviewHTML(review));
+})

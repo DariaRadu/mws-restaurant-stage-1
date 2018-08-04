@@ -1,7 +1,7 @@
 let restaurants,
   neighborhoods,
   cuisines
-var map
+var newMap
 var markers = []
 let db;
 var bLazy = new Blazy({
@@ -13,7 +13,7 @@ var bLazy = new Blazy({
 DBHelper.openDatabase()
 .then((database)=>{
   db=database;
-  db.transaction('restaurants', 'readonly').objectStore('restaurants').getAll()
+  db.transaction('restaurants', 'readwrite').objectStore('restaurants').getAll()
   .then((restaurantsCached)=>{
     restaurants = restaurantsCached;
     fillRestaurantsHTML(restaurants);
@@ -26,6 +26,7 @@ DBHelper.openDatabase()
  * Fetch neighborhoods and cuisines as soon as the page is loaded.
  */
 document.addEventListener('DOMContentLoaded', (event) => {
+  initMap(); 
   fetchNeighborhoods();
   fetchCuisines();
 });
@@ -88,7 +89,24 @@ fillCuisinesHTML = (cuisines = self.cuisines) => {
 /**
  * Initialize Google map, called from HTML.
  */
-window.initMap = () => {
+initMap = () => {
+  self.newMap = L.map('map', {
+        center: [40.722216, -73.987501],
+        zoom: 12,
+        scrollWheelZoom: false
+      });
+  L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.jpg70?access_token={mapboxToken}', {
+    mapboxToken: 'pk.eyJ1IjoiZGFyaWFyYWR1IiwiYSI6ImNqa2Z5ZjZueTBkOGwzdm56bHN1Y2pqY20ifQ.n9gKdcAPUTOoc50PPqILbA',
+    maxZoom: 18,
+    attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
+      '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+      'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+    id: 'mapbox.streets'
+  }).addTo(newMap);
+
+  updateRestaurants();
+}
+/* window.initMap = () => {
   let loc = {
     lat: 40.722216,
     lng: -73.987501
@@ -99,7 +117,7 @@ window.initMap = () => {
     scrollwheel: false
   });
   updateRestaurants();
-}
+} */
 
 /**
  * Update page and map for current restaurants.
@@ -123,6 +141,11 @@ updateRestaurants = () => {
       fillRestaurantsHTML();
     }
   })
+}
+
+/* Change Favourite Status UI */
+changeFavUi = (star, favStatus)=>{
+  star.classList.toggle('favourite');
 }
 
 /**
@@ -169,6 +192,27 @@ createRestaurantHTML = (restaurant) => {
   name.innerHTML = restaurant.name;
   li.append(name);
 
+  const favouriteStar = document.createElement('p');
+  favouriteStar.innerHTML='★';
+  favouriteStar.classList.add('star');
+  if (restaurant.is_favourite){
+    favouriteStar.classList.add('favourite');
+  }
+  favouriteStar.addEventListener('click', function(){
+    const favStatus = !restaurant.is_favourite;
+    restaurant.is_favourite = !restaurant.is_favourite;
+    DBHelper.changeFavouriteStatus(restaurant.id, favStatus)
+    changeFavUi(favouriteStar, favStatus);
+    const tx = db.transaction('restaurants','readwrite');
+    const restaurantsStore = tx.objectStore('restaurants');
+    restaurantsStore.get(restaurant.id)
+    .then(restaurantFound =>{
+      restaurantFound.is_favourite=restaurant.is_favourite;
+      restaurantsStore.put(restaurantFound);
+    })
+  })
+  li.append(favouriteStar);
+
   const neighborhood = document.createElement('p');
   neighborhood.innerHTML = restaurant.neighborhood;
   li.append(neighborhood);
@@ -188,7 +232,7 @@ createRestaurantHTML = (restaurant) => {
 /**
  * Add markers for current restaurants to the map.
  */
-addMarkersToMap = (restaurants = self.restaurants) => {
+/* addMarkersToMap = (restaurants = self.restaurants) => {
   restaurants.forEach(restaurant => {
     // Add marker to the map
     const marker = DBHelper.mapMarkerForRestaurant(restaurant, self.map);
@@ -197,7 +241,17 @@ addMarkersToMap = (restaurants = self.restaurants) => {
     });
     self.markers.push(marker);
   });
-}
+} */
+addMarkersToMap = (restaurants = self.restaurants) => {
+  restaurants.forEach(restaurant => {
+    // Add marker to the map
+    const marker = DBHelper.mapMarkerForRestaurant(restaurant, self.newMap);
+    marker.on("click", onClick);
+    function onClick() {
+      window.location.href = marker.options.url;
+    }
+  });
+} 
 
 /* SERVICE WORKER */
 
@@ -221,5 +275,13 @@ storeRestaurants=(restaurants)=>{
   const store = tx.objectStore('restaurants');
   restaurants.forEach((restaurant)=>{
     store.put(restaurant);
+  })
+}
+
+storeReviews=(reviews)=>{
+  const tx = db.transaction('reviews','readwrite');
+  const store = tx.objectStore('reviews');
+  restaurants.forEach((review)=>{
+    store.put(review);
   })
 }

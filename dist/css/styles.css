@@ -187,6 +187,7 @@ header h1 a {
   padding: 0 30px 25px;
   text-align: left;
   width: 270px;
+  position: relative;
 }
 #restaurants-list .restaurant-img {
   background-color: #ccc;
@@ -222,6 +223,23 @@ header h1 a {
   text-align: center;
   text-decoration: none;
   text-transform: uppercase;
+}
+
+.star{
+  position: absolute;
+  top: 0;
+  right: 33px;
+  color: #e8e8e8;
+  font-size: 71px!important;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  text-shadow: 2px 2px 9px rgba(0, 0, 0, 1);
+  cursor: pointer;
+}
+
+.star.favourite{
+  color:yellow;
 }
 
 /* ====================== Restaurant Details ====================== */
@@ -337,6 +355,53 @@ header h1 a {
 }
 #restaurant-hours td {
   color: #666;
+}
+
+#addReviewForm{
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+      -ms-flex-direction: column;
+          flex-direction: column;
+  font-size:16px;
+
+}
+
+#addReviewForm button{
+  width:200px;
+  height:40px;
+  padding:2px;
+  font-size:18px;
+  background-color:#f58500;
+  color:white;
+  -webkit-box-shadow:none;
+          box-shadow:none;
+  border:none;
+  margin-bottom:5vh;
+  cursor:pointer;
+}
+
+#addReviewForm label, #addReviewForm textarea{
+  margin-bottom:2vh;
+}
+
+#addReviewForm input, #addReviewForm textarea{
+  padding:5px;
+  border:1px solid #01447e;
+  border-radius:3px;
+}
+
+#addReviewForm select{
+  width:100px;
+  height:30px;
+  font-size:16px;
+}
+
+.offline-label{
+  color:red;
+  font-style: italic;
 }
 
 /* focus */

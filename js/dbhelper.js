@@ -11,23 +11,31 @@ class DBHelper {
    */
   static get DATABASE_URL() {
     const port = 1337 // Change this to your server port
-    return `http://localhost:${port}/restaurants`;
+    return `http://localhost:${port}`;
   }
 
   static openDatabase(){
     if (!navigator.serviceWorker) return;
   
-    return idb.open('restaurants',1, (upgradeDb)=>{
-      const store = upgradeDb.createObjectStore('restaurants',{
-        keyPath:'id'
-      });
+    return idb.open('restaurants', 2, (upgradeDb)=>{
+      switch(upgradeDb.oldVersion){
+        case 0:
+          const restaurantsStore = upgradeDb.createObjectStore('restaurants',{
+            keyPath:'id'
+          });
+        case 1:
+          const reviewsStore = upgradeDb.createObjectStore('reviews',{
+            keyPath:'id'
+          });
+          reviewsStore.createIndex('restaurant', 'restaurant_id');
+      }
     })
   }
   /**
    * Fetch all restaurants.
    */
   static fetchRestaurants(callback) {
-    fetch( DBHelper.DATABASE_URL)
+    fetch( `${DBHelper.DATABASE_URL}/restaurants`)
     .then(response=>response.json())
     .then(data=>{
       const restaurants=data;
@@ -180,7 +188,7 @@ class DBHelper {
   /**
    * Map marker for a restaurant.
    */
-  static mapMarkerForRestaurant(restaurant, map) {
+/*   static mapMarkerForRestaurant(restaurant, map) {
     const marker = new google.maps.Marker({
       position: restaurant.latlng,
       title: restaurant.name,
@@ -189,6 +197,81 @@ class DBHelper {
       animation: google.maps.Animation.DROP}
     );
     return marker;
+  } */
+  static mapMarkerForRestaurant(restaurant, map) {
+    // https://leafletjs.com/reference-1.3.0.html#marker  
+    const marker = new L.marker([restaurant.latlng.lat, restaurant.latlng.lng],
+      {title: restaurant.name,
+      alt: restaurant.name,
+      url: DBHelper.urlForRestaurant(restaurant)
+      })
+      marker.addTo(newMap);
+    return marker;
+  } 
+
+  /* Change Favourite Status */
+
+  static changeFavouriteStatus(restaurantId, favStatus){
+    fetch(`${DBHelper.DATABASE_URL}/restaurants/${restaurantId}/?is_favourite=${favStatus}`,{
+      method:'PUT'
+    }).then(()=>{
+      console.log('changed');
+    })
   }
 
+  /* Get Reviews */
+
+  static fetchReviews(restaurantId, callback){
+    fetch(`${DBHelper.DATABASE_URL}/reviews/?restaurant_id=${restaurantId}`)
+    .then( response => response.json())
+    .then( reviews => {
+      console.log(reviews);
+      callback(null, reviews);
+    })
+    .catch(error=>{
+      callback(error, null)
+    })
+  }
+
+  /* Add Reviews */
+  static addReviewWhenOnline(review){
+    localStorage.setItem('review', JSON.stringify(review));
+    window.addEventListener('online', ()=>{
+      let reviewData = JSON.parse(localStorage.getItem('review'));
+      let offlineReviews = [...document.querySelectorAll(".offline-review")];
+      console.log(offlineReviews);
+      offlineReviews.forEach(offlineReview =>{
+        offlineReview.remove();
+      })
+
+      if(reviewData!==null){
+        DBHelper.addReview(reviewData);
+        localStorage.removeItem('review');
+        let reviewsContainer=document.querySelector('#reviews-list');
+        reviewsContainer.appendChild(createReviewHTML(reviewData));
+      }
+    })
+  }
+
+  static addReview(review){
+    if (!navigator.onLine){
+      DBHelper.addReviewWhenOnline(review);
+      return;
+    }
+
+    let fetchOptions={
+      method:'POST',
+      body:JSON.stringify(review),
+      headers:new Headers({
+        'Content-Type':'application/json'
+      })
+    }
+
+    fetch(`${DBHelper.DATABASE_URL}/reviews`, fetchOptions)
+    .then(response =>{
+      console.log(response);
+    })
+    .catch(error=>console.log('error:',error));
+  }
 }
+
