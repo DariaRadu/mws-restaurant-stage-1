@@ -41,24 +41,25 @@ self.addEventListener('fetch', function(event){
             return caches.match(event.request);
         })
     ) */
-    const requestUrl = event.request.url.split(/[?#]/)[0];
+    const requestUrlSplit = event.request.url.split(/[?#]/);
+    const requestUrl = requestUrlSplit[0];
 
-  if (requestUrl.startsWith(self.location.origin)) {
-    event.respondWith(
-      caches.match(requestUrl).then(cacheFound => {
-        if (cacheFound) {
-          return cacheFound;
-        }
+    if (requestUrl.startsWith(self.location.origin)) {
+        event.respondWith(
+            caches.match(requestUrl).then(cacheFound => {
+                if (cacheFound) {
+                    return cacheFound;
+                }
 
-        return caches.open(staticCacheName).then(cache => {
-          return fetch(event.request).then(response => {
-            return cache.put(requestUrl, response.clone())
-            .then(() => {
-              return response;
-            });
-          });
-        });
-      })
-    );
-  }
+                return caches.open(staticCacheName).then(function (cache) {
+                    return fetch(event.request).then(function (response) {
+                        return cache.put(requestUrl, response.clone())
+                        .then(function() {
+                            return response;
+                        });
+                    });
+                });
+            })
+        );
+    };
 })
